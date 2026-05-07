@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Jordi Fit">
+<meta name="theme-color" content="#12131a">
+<title>Jordi Fit</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:#12131a;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#fff;overscroll-behavior:none}
+::-webkit-scrollbar{display:none}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+.app{max-width:430px;margin:0 auto;min-height:100vh;padding-bottom:80px}
+.tab{display:none}.tab.active{display:block}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#0e0f17;border-top:1px solid #1e2030;display:flex;padding:10px 0 env(safe-area-inset-bottom,16px)}
+.nav-btn{flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;color:#444;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:4px 0}
+.nav-btn.active{color:#e2ff3f}
+.nav-btn svg{display:block}
+.header{padding:52px 20px 16px}
+.section{padding:0 20px 16px}
+.section-title{font-size:11px;color:#555;font-weight:600;letter-spacing:.08em;margin-bottom:10px}
+.card{background:#1e2030;border-radius:14px;overflow:hidden}
+.card-pad{background:#1e2030;border-radius:14px;padding:14px 16px}
+.progress-bar-wrap{height:6px;background:#2a2d3e;border-radius:3px;overflow:hidden}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,#a8e63f,#e2ff3f);border-radius:3px;transition:width .4s}
+.macro-box{flex:1;background:#2a2d3e;border-radius:10px;padding:10px 12px;text-align:center;margin:0 3px}
+.macro-val{font-size:18px;font-weight:800}
+.macro-label{font-size:9px;color:#555;font-weight:600;letter-spacing:.05em;margin-top:2px}
+.macro-mini-bar{height:2px;background:#1e2030;border-radius:1px;margin-top:6px;overflow:hidden}
+.macro-mini-fill{height:100%;border-radius:1px}
+.weight-input{background:transparent;border:none;color:#e2ff3f;font-size:22px;font-weight:800;width:100%;font-family:inherit}
+.save-btn{border:none;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit}
+.meal-card{background:#1e2030;border-radius:14px;border:1px solid transparent;overflow:hidden;margin-bottom:8px;transition:border-color .15s,background .15s}
+.meal-card.checked{background:rgba(226,255,63,.06);border-color:rgba(226,255,63,.25)}
+.meal-row{display:flex;align-items:center;padding:14px;cursor:pointer;gap:12px}
+.check-btn{width:32px;height:32px;border-radius:50%;border:none;flex-shrink:0;background:#2a2d3e;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+.check-btn.checked{background:#e2ff3f}
+.check-btn:active{transform:scale(.92)}
+.meal-name{font-size:15px;font-weight:700;color:#fff;transition:color .15s}
+.meal-name.checked{color:#e2ff3f}
+.meal-kcal{font-size:14px;font-weight:700;color:#888;transition:color .15s}
+.meal-kcal.checked{color:#e2ff3f}
+.meal-meta{font-size:12px;color:#555;margin-top:2px}
+.chevron{flex-shrink:0;opacity:.4;transition:transform .2s}
+.chevron.open{transform:rotate(180deg)}
+.meal-items{padding:0 14px 14px 58px;border-top:1px solid rgba(255,255,255,.04);display:none}
+.meal-items.open{display:block}
+.meal-items-inner{padding-top:10px;display:flex;flex-direction:column;gap:5px}
+.item-row{display:flex;align-items:center;gap:8px}
+.item-dot{width:5px;height:5px;border-radius:50%;background:#2a2d3e;flex-shrink:0}
+.item-text{font-size:13px;color:#888}
+.gym-extra{margin-top:6px;font-size:12px;color:#e2ff3f;background:rgba(226,255,63,.08);border-radius:6px;padding:5px 8px}
+.sup-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s}
+.sup-row:last-child{border-bottom:none}
+.sup-row.checked{background:rgba(226,255,63,.04)}
+.sup-btn{width:28px;height:28px;border-radius:50%;border:none;flex-shrink:0;background:#2a2d3e;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+.sup-btn.checked{background:#e2ff3f}
+.sup-btn:active{transform:scale(.92)}
+.sup-name{font-size:14px;font-weight:600;color:#ccc;flex:1;transition:color .15s}
+.sup-name.checked{color:#e2ff3f}
+.sup-time{font-size:11px;color:#444;font-weight:500}
+canvas{display:block}
+.hist-row{background:#1e2030;border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.plan-meal-row{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer}
+.plan-items{padding:0 16px 14px;border-top:1px solid rgba(255,255,255,.05);display:none}
+.plan-items.open{display:block}
+.sup-plan-row{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;gap:12px}
+.sup-plan-row:last-child{border-bottom:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- HOY -->
+  <div id="tab-hoy" class="tab active">
+    <div class="header">
+      <div id="date-label" style="font-size:13px;color:#666;font-weight:500;margin-bottom:4px"></div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between">
+        <div>
+          <div style="font-size:13px;color:#555;font-weight:500;margin-bottom:2px">FASE 1 &mdash; D&Eacute;FICIT</div>
+          <div style="font-size:28px;font-weight:800;color:#e2ff3f;line-height:1">1.950 kcal</div>
+          <div style="font-size:12px;color:#555;margin-top:3px">200P &middot; 170C &middot; 50G</div>
+        </div>
+        <div id="weight-display" style="text-align:right"></div>
+      </div>
+    </div>
+
+```
+<div class="section">
+  <div class="card-pad">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:600;color:#ccc">PROGRESO DEL D&Iacute;A</span>
+      <span id="progress-pct" style="font-size:20px;font-weight:800;color:#e2ff3f">0%</span>
+    </div>
+    <div class="progress-bar-wrap"><div id="progress-fill" class="progress-bar-fill" style="width:0%"></div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:10px">
+      <div class="macro-box">
+        <div class="macro-val" style="color:#4fc3f7"><span id="mp">0</span><span style="font-size:11px;font-weight:500;color:#555">g</span></div>
+        <div class="macro-label">PROTE&Iacute;NA</div>
+        <div class="macro-mini-bar"><div id="mbp" class="macro-mini-fill" style="width:0%;background:#4fc3f7"></div></div>
+      </div>
+      <div class="macro-box">
+        <div class="macro-val" style="color:#e2ff3f"><span id="mc">0</span><span style="font-size:11px;font-weight:500;color:#555">g</span></div>
+        <div class="macro-label">CARBOS</div>
+        <div class="macro-mini-bar"><div id="mbc" class="macro-mini-fill" style="width:0%;background:#e2ff3f"></div></div>
+      </div>
+      <div class="macro-box">
+        <div class="macro-val" style="color:#ff7043"><span id="mg">0</span><span style="font-size:11px;font-weight:500;color:#555">g</span></div>
+        <div class="macro-label">GRASAS</div>
+        <div class="macro-mini-bar"><div id="mbg" class="macro-mini-fill" style="width:0%;background:#ff7043"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="card-pad" style="display:flex;align-items:center;gap:10px">
+    <div style="flex:1">
+      <div style="font-size:11px;color:#555;font-weight:600;letter-spacing:.08em;margin-bottom:4px">PESO HOY (kg)</div>
+      <input id="weight-input" type="number" step="0.1" placeholder="84.5" class="weight-input">
+    </div>
+    <button id="save-btn" class="save-btn" style="background:#2a2d3e;color:#444">Guardar</button>
+  </div>
+</div>
+
+<div class="section">
+  <div id="meals-title" class="section-title">COMIDAS &middot; 0/6</div>
+  <div id="meals-list"></div>
+</div>
+
+<div class="section" style="padding-top:0">
+  <div id="sups-title" class="section-title">SUPLEMENTOS &middot; 0/6</div>
+  <div class="card" id="sups-list"></div>
+</div>
+```
+
+  </div>
+
+  <!-- HISTORIAL -->
+
+  <div id="tab-historial" class="tab">
+    <div style="padding:52px 20px 20px">
+      <div style="font-size:22px;font-weight:800;margin-bottom:4px">Evoluci&oacute;n del peso</div>
+      <div id="hist-summary" style="font-size:13px;color:#555;margin-bottom:20px"></div>
+      <div class="card-pad" style="margin-bottom:20px">
+        <canvas id="chart" height="160"></canvas>
+        <div id="chart-empty" style="text-align:center;color:#444;padding:40px 0;font-size:13px;display:none">Registra al menos 2 pesos para ver la gr&aacute;fica</div>
+      </div>
+      <div class="section-title">REGISTRO DIARIO</div>
+      <div id="hist-list"></div>
+    </div>
+  </div>
+
+  <!-- PLAN -->
+
+  <div id="tab-plan" class="tab">
+    <div style="padding:52px 20px 20px">
+      <div style="font-size:22px;font-weight:800;margin-bottom:4px">Plan nutricional</div>
+      <div style="font-size:13px;color:#555;margin-bottom:20px">FASE 1 &middot; D&Eacute;FICIT LIMPIO &middot; ~1.950 kcal</div>
+      <div class="card-pad" style="margin-bottom:16px">
+        <div class="section-title">MACROS OBJETIVO</div>
+        <div style="display:flex;gap:8px">
+          <div class="macro-box"><div style="font-size:20px;font-weight:800;color:#4fc3f7">200g</div><div style="font-size:9px;color:#555;font-weight:600;margin-top:3px">PROTE&Iacute;NA</div></div>
+          <div class="macro-box"><div style="font-size:20px;font-weight:800;color:#e2ff3f">170g</div><div style="font-size:9px;color:#555;font-weight:600;margin-top:3px">CARBOS</div></div>
+          <div class="macro-box"><div style="font-size:20px;font-weight:800;color:#ff7043">50g</div><div style="font-size:9px;color:#555;font-weight:600;margin-top:3px">GRASAS</div></div>
+        </div>
+      </div>
+      <div class="section-title">COMIDAS</div>
+      <div id="plan-meals"></div>
+      <div style="margin-top:20px">
+        <div class="section-title">SUPLEMENTACI&Oacute;N</div>
+        <div class="card">
+          <div class="sup-plan-row"><div style="font-size:12px;color:#555;font-weight:600;min-width:90px">Ayunas</div><div style="font-size:13px;color:#888">Zinc</div></div>
+          <div class="sup-plan-row"><div style="font-size:12px;color:#555;font-weight:600;min-width:90px">Comida</div><div style="font-size:13px;color:#888">D3+K2 &middot; Omega-3</div></div>
+          <div class="sup-plan-row"><div style="font-size:12px;color:#555;font-weight:600;min-width:90px">Post-entreno</div><div style="font-size:13px;color:#888">Creatina Creapure 5g</div></div>
+          <div class="sup-plan-row"><div style="font-size:12px;color:#555;font-weight:600;min-width:90px">Cena</div><div style="font-size:13px;color:#888">Ashwagandha 300-600mg &middot; Magnesio bisglicinato</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+
+  <nav class="nav">
+    <button class="nav-btn active" data-tab="hoy">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="3" stroke="currentColor" stroke-width="2"/><path d="M3 9h18" stroke="currentColor" stroke-width="2"/><path d="M8 2v4M16 2v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      hoy
+    </button>
+    <button class="nav-btn" data-tab="historial">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      historial
+    </button>
+    <button class="nav-btn" data-tab="plan">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h10M4 18h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      plan
+    </button>
+  </nav>
+</div>
+
+<script>
+var MEALS=[
+  {id:"breakfast",time:"8:45",name:"Desayuno",kcal:490,p:35,c:65,g:10,items:["50g avena copos","2 yogures griegos ligeros Hacendado","Frutos rojos al gusto","10g frutos secos (nueces/almendras)","1 platano mediano"]},
+  {id:"morning",time:"11:00",name:"Media manana",kcal:195,p:20,c:22,g:3,items:["2 rebanadas pan espelta","80g pechuga pavo o pollo lonchas"]},
+  {id:"lunch",time:"14:30",name:"Comida",kcal:505,p:55,c:40,g:14,items:["250g pechuga pollo o merluza/bacalao","200g patata o arroz cocido","Verdura abundante","10ml AOVE"],extra:"+40g arroz/patata dias de gym"},
+  {id:"preworkout",time:"17:30",name:"Pre-entreno",kcal:185,p:13,c:33,g:0,items:["1 platano mediano","1 yogur griego"]},
+  {id:"postworkout",time:"~20:00",name:"Post-entreno",kcal:150,p:30,c:3,g:2,items:["30g proteina whey con agua","5g creatina Creapure"]},
+  {id:"dinner",time:"22:00",name:"Cena",kcal:425,p:50,c:8,g:21,items:["200g merluza, bacalao o pollo (air fryer)","Verdura abundante","1 huevo cocido","10ml AOVE sobre verdura/pescado"]}
+];
+var SUPS=[
+  {id:"sup_zinc",time:"Ayunas",name:"Zinc"},
+  {id:"sup_d3k2",time:"Comida",name:"D3+K2"},
+  {id:"sup_omega",time:"Comida",name:"Omega-3"},
+  {id:"sup_creatina",time:"Post-entreno",name:"Creatina 5g"},
+  {id:"sup_ashwa",time:"Cena",name:"Ashwagandha"},
+  {id:"sup_mag",time:"Cena",name:"Magnesio"}
+];
+
+var SK="jordi_fit_v2";
+var LEAN=85*0.85;
+
+function today(){return new Date().toISOString().split("T")[0];}
+function fmtDate(d){return new Date(d+"T12:00:00").toLocaleDateString("es-ES",{day:"numeric",month:"short"});}
+function estFat(w){return Math.max(4,((w-LEAN)/w)*100);}
+
+function load(){
+  try{
+    var r=localStorage.getItem(SK);
+    if(!r)return{entries:{},supEntries:{},weights:[]};
+    return JSON.parse(r);
+  }catch(e){return{entries:{},supEntries:{},weights:[]};}
+}
+function save(d){try{localStorage.setItem(SK,JSON.stringify(d));}catch(e){}}
+
+var state=load();
+
+function getChecked(date){return state.entries[date]||[];}
+function getSupChecked(date){return state.supEntries[date]||[];}
+
+function toggleItem(date,id,isSup){
+  var key=isSup?"supEntries":"entries";
+  var arr=state[key][date]?state[key][date].slice():[];
+  var idx=arr.indexOf(id);
+  if(idx>=0)arr.splice(idx,1);else arr.push(id);
+  state[key][date]=arr;
+  save(state);
+  render();
+}
+
+function addWeight(w){
+  var t=today();
+  state.weights=state.weights.filter(function(e){return e.date!==t;});
+  state.weights.push({date:t,w:w});
+  state.weights.sort(function(a,b){return a.date<b.date?-1:1;});
+  save(state);
+  render();
+}
+
+// CHECK SVG
+function checkSVG(){
+  return '<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-6" stroke="#12131a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+function chevSVG(){
+  return '<svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 6l8 8 8-8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+
+function render(){
+  var t=today();
+  var checked=getChecked(t);
+  var supChecked=getSupChecked(t);
+
+  // Date label
+  var dl=document.getElementById("date-label");
+  if(dl){
+    var dn=new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
+    dl.textContent=dn.charAt(0).toUpperCase()+dn.slice(1);
+  }
+
+  // Weight display
+  var lw=state.weights.length?state.weights[state.weights.length-1]:null;
+  var wd=document.getElementById("weight-display");
+  if(wd){
+    if(lw){
+      wd.innerHTML='<div style="font-size:32px;font-weight:800;color:#fff;line-height:1">'+lw.w+'kg</div><div style="font-size:12px;color:#555;margin-top:2px">~'+estFat(lw.w).toFixed(1)+'% grasa est.</div>';
+    }
+  }
+
+  // Weight input placeholder
+  var wi=document.getElementById("weight-input");
+  if(wi&&lw)wi.placeholder="Ultimo: "+lw.w+"kg";
+
+  // Progress
+  var total=MEALS.length+SUPS.length;
+  var done=checked.length+supChecked.length;
+  var pct=Math.round((done/total)*100);
+  var pp=document.getElementById("progress-pct");
+  var pf=document.getElementById("progress-fill");
+  if(pp)pp.textContent=pct+"%";
+  if(pf)pf.style.width=pct+"%";
+
+  // Macros
+  var cp=0,cc=0,cg=0;
+  MEALS.forEach(function(m){if(checked.indexOf(m.id)>=0){cp+=m.p;cc+=m.c;cg+=m.g;}});
+  var setM=function(id,val,total,barId){
+    var el=document.getElementById(id);if(el)el.textContent=val;
+    var bar=document.getElementById(barId);if(bar)bar.style.width=Math.min(100,Math.round(val/total*100))+"%";
+  };
+  setM("mp",cp,200,"mbp");setM("mc",cc,170,"mbc");setM("mg",cg,50,"mbg");
+
+  // Save btn style
+  var sb=document.getElementById("save-btn");
+  var wi2=document.getElementById("weight-input");
+  if(sb&&wi2){
+    var hasVal=wi2.value.trim()!=="";
+    sb.style.background=hasVal?"#e2ff3f":"#2a2d3e";
+    sb.style.color=hasVal?"#12131a":"#444";
+  }
+
+  // Meals
+  var mt=document.getElementById("meals-title");
+  if(mt)mt.textContent="COMIDAS \u00b7 "+checked.length+"/"+MEALS.length;
+  var ml=document.getElementById("meals-list");
+  if(ml){
+    ml.innerHTML=MEALS.map(function(meal){
+      var isChecked=checked.indexOf(meal.id)>=0;
+      return '<div class="meal-card'+(isChecked?" checked":"")+'">'+
+        '<div class="meal-row" onclick="toggleExpand(\''+meal.id+'\')">'+
+          '<button class="check-btn'+(isChecked?" checked":"")+ '" onclick="event.stopPropagation();toggleItem(\''+today()+'\',\''+meal.id+'\',false)">'+
+            (isChecked?checkSVG():"")+
+          '</button>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="display:flex;align-items:center;justify-content:space-between">'+
+              '<span class="meal-name'+(isChecked?" checked":"")+'">'+meal.name+'</span>'+
+              '<span class="meal-kcal'+(isChecked?" checked":"")+'">'+meal.kcal+' kcal</span>'+
+            '</div>'+
+            '<div class="meal-meta">'+meal.time+' &middot; '+meal.p+'g P &middot; '+meal.c+'g C &middot; '+meal.g+'g G</div>'+
+          '</div>'+
+          chevSVG()+
+        '</div>'+
+        '<div class="meal-items" id="exp-'+meal.id+'">'+
+          '<div class="meal-items-inner">'+
+            meal.items.map(function(it){return '<div class="item-row"><div class="item-dot"></div><span class="item-text">'+it+'</span></div>';}).join("")+
+            (meal.extra?'<div class="gym-extra">&#128170; '+meal.extra+'</div>':"")+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    }).join("");
+  }
+
+  // Sups
+  var st=document.getElementById("sups-title");
+  if(st)st.textContent="SUPLEMENTOS \u00b7 "+supChecked.length+"/"+SUPS.length;
+  var sl=document.getElementById("sups-list");
+  if(sl){
+    sl.innerHTML=SUPS.map(function(sup){
+      var isChecked=supChecked.indexOf(sup.id)>=0;
+      return '<div class="sup-row'+(isChecked?" checked":"")+'">'+
+        '<button class="sup-btn'+(isChecked?" checked":"")+ '" onclick="toggleItem(\''+today()+'\',\''+sup.id+'\',true)">'+
+          (isChecked?checkSVG():"")+
+        '</button>'+
+        '<span class="sup-name'+(isChecked?" checked":"")+'">'+sup.name+'</span>'+
+        '<span class="sup-time">'+sup.time+'</span>'+
+      '</div>';
+    }).join("");
+  }
+
+  // Historial summary
+  var hs=document.getElementById("hist-summary");
+  if(hs&&lw){
+    var fw=state.weights[0];
+    var lost=fw&&lw&&fw!==lw?(fw.w-lw.w).toFixed(1):null;
+    hs.innerHTML='Actual: <span style="color:#e2ff3f;font-weight:700">'+lw.w+'kg</span>'+
+      (lost&&parseFloat(lost)>0?' <span style="color:#4ade80;font-weight:600">&middot; &minus;'+lost+'kg total</span>':"")+
+      ' <span style="color:#555">&middot; ~'+estFat(lw.w).toFixed(1)+'% grasa est.</span>';
+  }
+
+  // Chart
+  renderChart();
+
+  // Hist list
+  var hl=document.getElementById("hist-list");
+  if(hl){
+    if(!state.weights.length){
+      hl.innerHTML='<div style="text-align:center;color:#444;padding:40px 0;font-size:13px">Sin registros a&uacute;n</div>';
+    }else{
+      hl.innerHTML=[...state.weights].reverse().map(function(entry,i){
+        var prev=state.weights[state.weights.length-1-i-1];
+        var diff=prev?entry.w-prev.w:null;
+        var ec=state.entries[entry.date]||[];
+        return '<div class="hist-row">'+
+          '<div style="display:flex;gap:14px;align-items:center">'+
+            '<div style="font-size:12px;color:#555;font-weight:500;min-width:60px">'+fmtDate(entry.date)+'</div>'+
+            '<div style="font-size:22px;font-weight:800;color:#e2ff3f">'+entry.w+'kg</div>'+
+            (diff!==null?'<div style="font-size:13px;font-weight:700;color:'+(diff<0?"#4ade80":"#f87171")+'">'+(diff<0?"\u2212":"+")+Math.abs(diff).toFixed(2)+'</div>':"")+
+          '</div>'+
+          '<div style="text-align:right">'+
+            '<div style="font-size:12px;color:#555">'+ec.length+'/'+MEALS.length+' comidas</div>'+
+            '<div style="font-size:11px;color:'+(ec.length===MEALS.length?"#4ade80":"#555")+';margin-top:2px">'+(ec.length===MEALS.length?"completo":ec.length>0?ec.length+" ok":"--")+'</div>'+
+          '</div>'+
+        '</div>';
+      }).join("");
+    }
+  }
+
+  // Plan meals
+  var pm=document.getElementById("plan-meals");
+  if(pm){
+    pm.innerHTML=MEALS.map(function(meal){
+      return '<div class="card" style="margin-bottom:8px">'+
+        '<div class="plan-meal-row" onclick="togglePlanExpand(\''+meal.id+'\')">'+
+          '<div>'+
+            '<div style="font-size:11px;color:#555;font-weight:600">'+meal.time+'</div>'+
+            '<div style="font-size:15px;font-weight:700;color:#fff;margin-top:1px">'+meal.name+'</div>'+
+            '<div style="font-size:12px;color:#555;margin-top:2px">'+meal.p+'g P &middot; '+meal.c+'g C &middot; '+meal.g+'g G</div>'+
+          '</div>'+
+          '<div style="text-align:right">'+
+            '<div style="font-size:16px;font-weight:800;color:#e2ff3f">'+meal.kcal+'</div>'+
+            '<div style="font-size:10px;color:#555">kcal</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="plan-items" id="pexp-'+meal.id+'">'+
+          '<div style="padding-top:10px;display:flex;flex-direction:column;gap:5px">'+
+            meal.items.map(function(it){return '<div class="item-row"><div class="item-dot"></div><span class="item-text">'+it+'</span></div>';}).join("")+
+            (meal.extra?'<div class="gym-extra">&#128170; '+meal.extra+'</div>':"")+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    }).join("");
+  }
+}
+
+function renderChart(){
+  var canvas=document.getElementById("chart");
+  var empty=document.getElementById("chart-empty");
+  if(!canvas)return;
+  var weights=state.weights;
+  if(weights.length<2){
+    canvas.style.display="none";
+    if(empty)empty.style.display="block";
+    return;
+  }
+  canvas.style.display="block";
+  if(empty)empty.style.display="none";
+  var W=canvas.parentElement.clientWidth-28;
+  canvas.width=W;canvas.height=160;
+  var ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,W,160);
+  var vals=weights.map(function(e){return e.w;});
+  var minV=Math.min.apply(null,vals)-0.5;
+  var maxV=Math.max.apply(null,vals)+0.5;
+  var pad={l:30,r:10,t:10,b:30};
+  var cW=W-pad.l-pad.r;
+  var cH=160-pad.t-pad.b;
+  function px(i){return pad.l+i*(cW/(weights.length-1));}
+  function py(v){return pad.t+cH-(v-minV)/(maxV-minV)*cH;}
+  // Grid lines
+  ctx.strokeStyle="#2a2d3e";ctx.lineWidth=1;
+  for(var i=0;i<4;i++){
+    var y=pad.t+i*(cH/3);
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
+  }
+  // Line
+  ctx.beginPath();ctx.strokeStyle="#e2ff3f";ctx.lineWidth=2.5;ctx.lineJoin="round";ctx.lineCap="round";
+  weights.forEach(function(w,i){i===0?ctx.moveTo(px(i),py(w.w)):ctx.lineTo(px(i),py(w.w));});
+  ctx.stroke();
+  // Dots
+  weights.forEach(function(w,i){
+    ctx.beginPath();ctx.arc(px(i),py(w.w),4,0,Math.PI*2);
+    ctx.fillStyle="#e2ff3f";ctx.fill();
+  });
+  // X labels
+  ctx.fillStyle="#555";ctx.font="10px -apple-system,sans-serif";ctx.textAlign="center";
+  var step=Math.max(1,Math.floor(weights.length/4));
+  weights.forEach(function(w,i){
+    if(i===0||i===weights.length-1||i%step===0){
+      ctx.fillText(fmtDate(w.date),px(i),160-8);
+    }
+  });
+  // Y labels
+  ctx.textAlign="right";
+  for(var j=0;j<3;j++){
+    var v=minV+(maxV-minV)*j/2;
+    ctx.fillText(v.toFixed(1),pad.l-4,py(v)+4);
+  }
+}
+
+function toggleExpand(id){
+  var el=document.getElementById("exp-"+id);
+  if(!el)return;
+  var chev=el.previousElementSibling.querySelector(".chevron");
+  if(el.classList.contains("open")){el.classList.remove("open");if(chev)chev.classList.remove("open");}
+  else{el.classList.add("open");if(chev)chev.classList.add("open");}
+}
+
+function togglePlanExpand(id){
+  var el=document.getElementById("pexp-"+id);
+  if(el)el.classList.toggle("open");
+}
+
+// Nav
+document.querySelectorAll(".nav-btn").forEach(function(btn){
+  btn.addEventListener("click",function(){
+    var tab=btn.getAttribute("data-tab");
+    document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});
+    document.querySelectorAll(".nav-btn").forEach(function(b){b.classList.remove("active");});
+    document.getElementById("tab-"+tab).classList.add("active");
+    btn.classList.add("active");
+    if(tab==="historial")setTimeout(renderChart,50);
+  });
+});
+
+// Weight save
+document.getElementById("save-btn").addEventListener("click",function(){
+  var v=parseFloat(document.getElementById("weight-input").value);
+  if(!isNaN(v)&&v>0){addWeight(v);document.getElementById("weight-input").value="";}
+});
+document.getElementById("weight-input").addEventListener("input",function(){
+  var sb=document.getElementById("save-btn");
+  var has=this.value.trim()!=="";
+  sb.style.background=has?"#e2ff3f":"#2a2d3e";
+  sb.style.color=has?"#12131a":"#444";
+});
+document.getElementById("weight-input").addEventListener("keydown",function(e){
+  if(e.key==="Enter"){
+    var v=parseFloat(this.value);
+    if(!isNaN(v)&&v>0){addWeight(v);this.value="";document.getElementById("save-btn").style.background="#2a2d3e";document.getElementById("save-btn").style.color="#444";}
+  }
+});
+
+render();
+</script>
+
+</body>
+</html>
