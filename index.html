@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Jordi Fit" />
+  <meta name="theme-color" content="#12131a" />
+  <title>Jordi Fit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #12131a; min-height: 100vh; }
+    ::-webkit-scrollbar { display: none; }
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .meal-card { transition: background 0.15s; }
+    .check-btn { transition: all 0.15s; cursor: pointer; }
+    .check-btn:active { transform: scale(0.92); }
+    .nav-btn { transition: color 0.15s; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+
+  <script>
+    const { useState, useEffect, useCallback } = React;
+    const { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } = Recharts;
+
+    // ─── DATA ─────────────────────────────────────────────────────────────────
+    const PLAN = {
+      kcal: 1950,
+      macros: { p: 200, c: 170, g: 50 },
+      meals: [
+        { id: "breakfast", time: "8:45", name: "Desayuno", kcal: 490, macros: { p: 35, c: 65, g: 10 },
+          items: ["50g avena copos", "2 yogures griegos ligeros Hacendado", "Frutos rojos al gusto", "10g frutos secos (nueces/almendras)", "1 plátano mediano"] },
+        { id: "morning", time: "11:00", name: "Media mañana", kcal: 195, macros: { p: 20, c: 22, g: 3 },
+          items: ["2 rebanadas pan espelta", "80g pechuga pavo o pollo lonchas"] },
+        { id: "lunch", time: "14:30", name: "Comida", kcal: 505, macros: { p: 55, c: 40, g: 14 },
+          items: ["250g pechuga pollo o merluza/bacalao", "200g patata o arroz cocido", "Verdura abundante", "10ml AOVE"],
+          gymExtra: "+40g arroz/patata días de gym" },
+        { id: "preworkout", time: "17:30", name: "Pre-entreno", kcal: 185, macros: { p: 13, c: 33, g: 0 },
+          items: ["1 plátano mediano", "1 yogur griego"] },
+        { id: "postworkout", time: "~20:00", name: "Post-entreno", kcal: 150, macros: { p: 30, c: 3, g: 2 },
+          items: ["30g proteína whey con agua", "5g creatina Creapure"] },
+        { id: "dinner", time: "22:00", name: "Cena", kcal: 425, macros: { p: 50, c: 8, g: 21 },
+          items: ["200g merluza, bacalao o pollo (air fryer)", "Verdura abundante", "1 huevo cocido", "10ml AOVE sobre verdura/pescado"] },
+      ],
+    };
+
+    const SUPPLEMENTS = [
+      { id: "sup_zinc", time: "Ayunas", name: "Zinc" },
+      { id: "sup_d3k2", time: "Comida", name: "D3+K2" },
+      { id: "sup_omega", time: "Comida", name: "Omega-3" },
+      { id: "sup_creatina", time: "Post-entreno", name: "Creatina 5g" },
+      { id: "sup_ashwa", time: "Cena", name: "Ashwagandha" },
+      { id: "sup_mag", time: "Cena", name: "Magnesio" },
+    ];
+
+    const STORAGE_KEY = "jordi_fit_v1";
+    const TODAY = new Date().toISOString().split("T")[0];
+    const LEAN = 85 * 0.85;
+
+    function fmt(d) {
+      return new Date(d + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+    }
+    function estFat(w) { return Math.max(4, ((w - LEAN) / w) * 100); }
+
+    function loadData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { entries: {}, supEntries: {}, weights: [] };
+        const parsed = JSON.parse(raw);
+        const entries = {};
+        for (const [k, v] of Object.entries(parsed.entries || {})) entries[k] = new Set(v);
+        const supEntries = {};
+        for (const [k, v] of Object.entries(parsed.supEntries || {})) supEntries[k] = new Set(v);
+        return { entries, supEntries, weights: parsed.weights || [] };
+      } catch { return { entries: {}, supEntries: {}, weights: [] }; }
+    }
+
+    function saveData(d) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          weights: d.weights,
+          entries: Object.fromEntries(Object.entries(d.entries).map(([k, v]) => [k, [...v]])),
+          supEntries: Object.fromEntries(Object.entries(d.supEntries || {}).map(([k, v]) => [k, [...v]])),
+        }));
+      } catch {}
+    }
+
+    // ─── CHECK ICON ───────────────────────────────────────────────────────────
+    function CheckIcon() {
+      return React.createElement('svg', { width: 13, height: 13, viewBox: "0 0 16 16", fill: "none" },
+        React.createElement('path', { d: "M3 8l4 4 6-6", stroke: "#12131a", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" })
+      );
+    }
+
+    function ChevronIcon({ open }) {
+      return React.createElement('svg', { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none",
+        style: { flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", opacity: 0.4 } },
+        React.createElement('path', { d: "M4 6l8 8 8-8", stroke: "#fff", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" })
+      );
+    }
+
+    // ─── APP ──────────────────────────────────────────────────────────────────
+    function App() {
+      const [tab, setTab] = useState("hoy");
+      const [data, setData] = useState(() => loadData());
+      const [expanded, setExpanded] = useState({});
+      const [weightInput, setWeightInput] = useState("");
+
+      function update(newData) { setData(newData); saveData(newData); }
+
+      function toggleMeal(id) {
+        const cur = new Set(data.entries[TODAY] || []);
+        cur.has(id) ? cur.delete(id) : cur.add(id);
+        update({ ...data, entries: { ...data.entries, [TODAY]: cur } });
+      }
+
+      function toggleSup(id) {
+        const cur = new Set(data.supEntries[TODAY] || []);
+        cur.has(id) ? cur.delete(id) : cur.add(id);
+        update({ ...data, supEntries: { ...data.supEntries, [TODAY]: cur } });
+      }
+
+      function addWeight() {
+        const w = parseFloat(weightInput);
+        if (!w || isNaN(w)) return;
+        const weights = [...data.weights.filter(e => e.date !== TODAY), { date: TODAY, w }]
+          .sort((a, b) => a.date.localeCompare(b.date));
+        update({ ...data, weights });
+        setWeightInput("");
+      }
+
+      const todayChecked = data.entries[TODAY] || new Set();
+      const todaySupChecked = data.supEntries[TODAY] || new Set();
+      const progressPct = Math.round(((todayChecked.size + todaySupChecked.size) / (PLAN.meals.length + SUPPLEMENTS.length)) * 100);
+      const consumed = PLAN.meals.filter(m => todayChecked.has(m.id))
+        .reduce((a, m) => ({ p: a.p + m.macros.p, c: a.c + m.macros.c, g: a.g + m.macros.g, kcal: a.kcal + m.kcal }), { p:0, c:0, g:0, kcal:0 });
+
+      const lastWeight = data.weights[data.weights.length - 1];
+      const firstWeight = data.weights[0];
+      const totalLost = firstWeight && lastWeight ? (firstWeight.w - lastWeight.w).toFixed(1) : null;
+      const chartData = data.weights.map(e => ({ date: fmt(e.date), w: e.w }));
+
+      const e = React.createElement;
+      const s = (styles) => styles; // passthrough for inline styles
+
+      // ── NAV ────────────────────────────────────────────────────────────────
+      const navIcons = {
+        hoy: e('svg', { width:22, height:22, viewBox:"0 0 24 24", fill:"none" },
+          e('rect', { x:3, y:4, width:18, height:17, rx:3, stroke:"currentColor", strokeWidth:2 }),
+          e('path', { d:"M3 9h18", stroke:"currentColor", strokeWidth:2 }),
+          e('path', { d:"M8 2v4M16 2v4", stroke:"currentColor", strokeWidth:2, strokeLinecap:"round" })
+        ),
+        historial: e('svg', { width:22, height:22, viewBox:"0 0 24 24", fill:"none" },
+          e('polyline', { points:"22 12 18 12 15 21 9 3 6 12 2 12", stroke:"currentColor", strokeWidth:2, strokeLinecap:"round", strokeLinejoin:"round" })
+        ),
+        plan: e('svg', { width:22, height:22, viewBox:"0 0 24 24", fill:"none" },
+          e('path', { d:"M4 6h16M4 12h10M4 18h7", stroke:"currentColor", strokeWidth:2, strokeLinecap:"round" })
+        ),
+      };
+
+      const nav = e('div', { style: { position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:430, background:"#0e0f17", borderTop:"1px solid #1e2030", display:"flex", padding:"10px 0 env(safe-area-inset-bottom, 16px)" } },
+        ["hoy","historial","plan"].map(t =>
+          e('button', { key:t, className:"nav-btn", onClick:()=>setTab(t),
+            style: { flex:1, background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:4, color: tab===t ? "#e2ff3f" : "#444", fontFamily:"Inter,sans-serif" } },
+            navIcons[t],
+            e('span', { style:{ fontSize:10, fontWeight:600, letterSpacing:"0.06em", textTransform:"uppercase" } }, t)
+          )
+        )
+      );
+
+      // ── HOY ────────────────────────────────────────────────────────────────
+      const tabHoy = e('div', null,
+        // Header
+        e('div', { style:{ padding:"52px 20px 16px" } },
+          e('div', { style:{ fontSize:13, color:"#666", fontWeight:500, marginBottom:4 } },
+            new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"}).replace(/^\w/,c=>c.toUpperCase())
+          ),
+          e('div', { style:{ display:"flex", alignItems:"flex-end", justifyContent:"space-between" } },
+            e('div', null,
+              e('div', { style:{ fontSize:13, color:"#555", fontWeight:500, marginBottom:2 } }, "FASE 1 — DÉFICIT"),
+              e('div', { style:{ fontSize:28, fontWeight:800, color:"#e2ff3f", lineHeight:1 } }, "1.950 kcal"),
+              e('div', { style:{ fontSize:12, color:"#555", marginTop:3 } }, "200P · 170C · 50G")
+            ),
+            lastWeight && e('div', { style:{ textAlign:"right" } },
+              e('div', { style:{ fontSize:32, fontWeight:800, color:"#fff", lineHeight:1 } }, lastWeight.w + "kg"),
+              e('div', { style:{ fontSize:12, color:"#555", marginTop:2 } }, "~" + estFat(lastWeight.w).toFixed(1) + "% grasa est.")
+            )
+          )
+        ),
+
+        // Progress
+        e('div', { style:{ padding:"0 20px 16px" } },
+          e('div', { style:{ background:"#1e2030", borderRadius:12, padding:"14px 16px" } },
+            e('div', { style:{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 } },
+              e('span', { style:{ fontSize:13, fontWeight:600, color:"#ccc" } }, "PROGRESO DEL DÍA"),
+              e('span', { style:{ fontSize:20, fontWeight:800, color:"#e2ff3f" } }, progressPct + "%")
+            ),
+            e('div', { style:{ height:6, background:"#2a2d3e", borderRadius:3, overflow:"hidden" } },
+              e('div', { style:{ height:"100%", width:progressPct+"%", background:"linear-gradient(90deg,#a8e63f,#e2ff3f)", borderRadius:3, transition:"width 0.4s" } })
+            ),
+            e('div', { style:{ display:"flex", justifyContent:"space-between", marginTop:10 } },
+              [
+                { label:"PROTEÍNA", val:consumed.p, total:200, color:"#4fc3f7" },
+                { label:"CARBOS", val:consumed.c, total:170, color:"#e2ff3f" },
+                { label:"GRASAS", val:consumed.g, total:50, color:"#ff7043" },
+              ].map(m => e('div', { key:m.label, style:{ background:"#2a2d3e", borderRadius:10, padding:"10px 12px", flex:1, margin:"0 3px", textAlign:"center" } },
+                e('div', { style:{ fontSize:18, fontWeight:800, color:m.color } }, m.val, e('span',{style:{fontSize:11,fontWeight:500,color:"#555"}},"g")),
+                e('div', { style:{ fontSize:9, color:"#555", fontWeight:600, letterSpacing:"0.05em", marginTop:2 } }, m.label),
+                e('div', { style:{ height:2, background:"#1e2030", borderRadius:1, marginTop:6, overflow:"hidden" } },
+                  e('div', { style:{ height:"100%", width:Math.min(100,(m.val/m.total)*100)+"%", background:m.color, borderRadius:1 } })
+                )
+              ))
+            )
+          )
+        ),
+
+        // Weight input
+        e('div', { style:{ padding:"0 20px 16px" } },
+          e('div', { style:{ background:"#1e2030", borderRadius:12, padding:"14px 16px", display:"flex", alignItems:"center", gap:10 } },
+            e('div', { style:{ flex:1 } },
+              e('div', { style:{ fontSize:11, color:"#555", fontWeight:600, letterSpacing:"0.08em", marginBottom:4 } }, "PESO HOY (kg)"),
+              e('input', { type:"number", step:"0.1", placeholder: lastWeight ? "Último: "+lastWeight.w+"kg" : "84.5",
+                value: weightInput, onChange: ev => setWeightInput(ev.target.value),
+                onKeyDown: ev => ev.key === "Enter" && addWeight(),
+                style:{ background:"transparent", border:"none", color:"#e2ff3f", fontSize:22, fontWeight:800, width:"100%", fontFamily:"Inter,sans-serif" } })
+            ),
+            e('button', { onClick: addWeight,
+              style:{ background: weightInput?"#e2ff3f":"#2a2d3e", color: weightInput?"#12131a":"#444", border:"none", borderRadius:10, padding:"10px 18px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"Inter,sans-serif" } },
+              "Guardar"
+            )
+          )
+        ),
+
+        // Meals
+        e('div', { style:{ padding:"0 20px" } },
+          e('div', { style:{ fontSize:11, color:"#555", fontWeight:600, letterSpacing:"0.08em", marginBottom:10 } }, "COMIDAS · " + todayChecked.size + "/" + PLAN.meals.length),
+          e('div', { style:{ display:"flex", flexDirection:"column", gap:8 } },
+            PLAN.meals.map(meal => {
+              const checked = todayChecked.has(meal.id);
+              const open = expanded[meal.id];
+              return e('div', { key:meal.id, className:"meal-card",
+                style:{ background: checked?"rgba(226,255,63,0.06)":"#1e2030", borderRadius:14, border:`1px solid ${checked?"rgba(226,255,63,0.25)":"transparent"}`, overflow:"hidden" } },
+                e('div', { style:{ display:"flex", alignItems:"center", padding:"14px", cursor:"pointer", gap:12 },
+                  onClick: () => setExpanded(ex => ({...ex, [meal.id]: !ex[meal.id]})) },
+                  e('button', { className:"check-btn",
+                    onClick: ev => { ev.stopPropagation(); toggleMeal(meal.id); },
+                    style:{ width:32, height:32, borderRadius:"50%", border:"none", flexShrink:0, background: checked?"#e2ff3f":"#2a2d3e", display:"flex", alignItems:"center", justifyContent:"center" } },
+                    checked && e(CheckIcon)
+                  ),
+                  e('div', { style:{ flex:1, minWidth:0 } },
+                    e('div', { style:{ display:"flex", alignItems:"center", justifyContent:"space-between" } },
+                      e('span', { style:{ fontSize:15, fontWeight:700, color: checked?"#e2ff3f":"#fff" } }, meal.name),
+                      e('span', { style:{ fontSize:14, fontWeight:700, color: checked?"#e2ff3f":"#888" } }, meal.kcal + " kcal")
+                    ),
+                    e('div', { style:{ fontSize:12, color:"#555", marginTop:2 } }, meal.time + " · " + meal.macros.p + "g P · " + meal.macros.c + "g C · " + meal.macros.g + "g G")
+                  ),
+                  e(ChevronIcon, { open })
+                ),
+                open && e('div', { style:{ padding:"0 14px 14px 58px", borderTop:"1px solid rgba(255,255,255,0.04)" } },
+                  e('div', { style:{ paddingTop:10, display:"flex", flexDirection:"column", gap:5 } },
+                    meal.items.map((item, i) => e('div', { key:i, style:{ display:"flex", alignItems:"center", gap:8 } },
+                      e('div', { style:{ width:5, height:5, borderRadius:"50%", background:"#2a2d3e", flexShrink:0 } }),
+                      e('span', { style:{ fontSize:13, color:"#888" } }, item)
+                    )),
+                    meal.gymExtra && e('div', { style:{ marginTop:6, fontSize:12, color:"#e2ff3f", background:"rgba(226,255,63,0.08)", borderRadius:6, padding:"5px 8px" } }, "💪 " + meal.gymExtra)
+                  )
+                )
+              );
+            })
+          )
+        ),
+
+        // Supplements
+        e('div', { style:{ padding:"16px 20px 0" } },
+          e('div', { style:{ fontSize:11, color:"#555", fontWeight:600, letterSpacing:"0.08em", marginBottom:10 } }, "SUPLEMENTOS · " + todaySupChecked.size + "/" + SUPPLEMENTS.length),
+          e('div', { style:{ background:"#1e2030", borderRadius:14, overflow:"hidden" } },
+            SUPPLEMENTS.map((sup, i) => {
+              const checked = todaySupChecked.has(sup.id);
+              return e('div', { key:sup.id,
+                style:{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px",
+                  borderBottom: i < SUPPLEMENTS.length-1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+                  background: checked?"rgba(226,255,63,0.04)":"transparent", transition:"background 0.15s" } },
+                e('button', { className:"check-btn", onClick:()=>toggleSup(sup.id),
+                  style:{ width:28, height:28, borderRadius:"50%", border:"none", flexShrink:0, background:checked?"#e2ff3f":"#2a2d3e", display:"flex", alignItems:"center", justifyContent:"center" } },
+                  checked && e(CheckIcon)
+                ),
+                e('div', { style:{ flex:1 } },
+                  e('span', { style:{ fontSize:14, fontWeight:600, color:checked?"#e2ff3f":"#ccc" } }, sup.name)
+                ),
+                e('div', { style:{ fontSize:11, color:"#444", fontWeight:500 } }, sup.time)
+              );
+            })
+          )
+        )
+      );
+
+      // ── HISTORIAL ──────────────────────────────────────────────────────────
+      const tabHistorial = e('div', { style:{ padding:"52px 20px 20px" } },
+        e('div', { style:{ fontSize:22, fontWeight:800, marginBottom:4 } }, "Evolución del peso"),
+        lastWeight && e('div', { style:{ fontSize:13, color:"#555", marginBottom:20 } },
+          "Actual: ", e('span', { style:{ color:"#e2ff3f", fontWeight:700 } }, lastWeight.w + "kg"),
+          totalLost && parseFloat(totalLost) > 0 && e('span', { style:{ color:"#4ade80", fontWeight:600 } }, " · −" + totalLost + "kg total"),
+          e('span', { style:{ color:"#555" } }, " · ~" + estFat(lastWeight.w).toFixed(1) + "% grasa est.")
+        ),
+
+        e('div', { style:{ background:"#1e2030", borderRadius:16, padding:"16px 8px 10px", marginBottom:20 } },
+          chartData.length < 2
+            ? e('div', { style:{ textAlign:"center", color:"#444", padding:"40px 0", fontSize:13 } }, "Registra al menos 2 pesos para ver la gráfica")
+            : e(ResponsiveContainer, { width:"100%", height:180 },
+                e(LineChart, { data: chartData, margin:{ top:5, right:10, left:-15, bottom:5 } },
+                  e(XAxis, { dataKey:"date", tick:{ fontSize:10, fill:"#555", fontFamily:"Inter" }, axisLine:false, tickLine:false, interval:"preserveStartEnd" }),
+                  e(YAxis, { tick:{ fontSize:10, fill:"#555", fontFamily:"Inter" }, axisLine:false, tickLine:false, domain:["dataMin - 0.5","dataMax + 0.5"] }),
+                  e(Tooltip, { contentStyle:{ background:"#2a2d3e", border:"none", borderRadius:8, fontFamily:"Inter", fontSize:12 }, labelStyle:{ color:"#888" }, itemStyle:{ color:"#e2ff3f" } }),
+                  e(Line, { type:"monotone", dataKey:"w", stroke:"#e2ff3f", strokeWidth:2.5, dot:{ fill:"#e2ff3f", r:4, strokeWidth:0 }, activeDot:{ r:6 }, name:"Peso" })
+                )
+              )
+        ),
+
+        e('div', { style:{ fontSize:11, color:"#555", fontWeight:600, letterSpacing:"0.08em", marginBottom:10 } }, "REGISTRO DIARIO"),
+        e('div', { style:{ display:"flex", flexDirection:"column", gap:6 } },
+          data.weights.length === 0
+            ? e('div', { style:{ textAlign:"center", color:"#444", padding:"40px 0", fontSize:13 } }, "Sin registros aún")
+            : [...data.weights].reverse().map((entry, i) => {
+                const prev = data.weights[data.weights.length - 1 - i - 1];
+                const diff = prev ? entry.w - prev.w : null;
+                const checked = data.entries[entry.date] || new Set();
+                return e('div', { key:entry.date,
+                  style:{ background:"#1e2030", borderRadius:12, padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" } },
+                  e('div', { style:{ display:"flex", gap:14, alignItems:"center" } },
+                    e('div', { style:{ fontSize:12, color:"#555", fontWeight:500 } }, fmt(entry.date)),
+                    e('div', { style:{ fontSize:22, fontWeight:800, color:"#e2ff3f" } }, entry.w + "kg"),
+                    diff !== null && e('div', { style:{ fontSize:13, fontWeight:700, color: diff<0?"#4ade80":"#f87171" } },
+                      (diff < 0 ? "−" : "+") + Math.abs(diff).toFixed(2)
+                    )
+                  ),
+                  e('div', { style:{ textAlign:"right" } },
+                    e('div', { style:{ fontSize:12, color:"#555" } }, checked.size + "/" + PLAN.meals.length + " comidas"),
+                    e('div', { style:{ fontSize:11, color: checked.size===PLAN.meals.length?"#4ade80":"#555", marginTop:2 } },
+                      checked.size === PLAN.meals.length ? "✓ completo" : checked.size > 0 ? checked.size + " ✓" : "—"
+                    )
+                  )
+                );
+              })
+        )
+      );
+
+      // ── PLAN ───────────────────────────────────────────────────────────────
+      const tabPlan = e('div', { style:{ padding:"52px 20px 20px" } },
+        e('div', { style:{ fontSize:22, fontWeight:800, marginBottom:4 } }, "Plan nutricional"),
+        e('div', { style:{ fontSize:13, color:"#555", marginBottom:20 } }, "FASE 1 · DÉFICIT LIMPIO · ~1.950 kcal"),
+
+        e('div', { style:{ background:"#1e2030", borderRadius:14, padding:"14px 16px", marginBottom:16 } },
+          e('div', { style:{ fontSize:11, color:"#555", fontWeight:600, letterSpacing:"0.08em", marginBottom:10 } }, "MACROS OBJETIVO"),
+          e('div', { style:{ display:"flex", gap:8 } },
+            [{ label:"PROTEÍNA", val:"200g", color:"#4fc3f7" }, { label:"CARBOS", val:"170g", color:"#e2ff3f" }, { label:"GRASAS", val:"50g", color:"#ff7043" }]
+              .map(m => e('div', { key:m.label, style:{ flex:1, background:"#2a2d3e", borderRadius:10, padding:10, textAlign:"center" } },
+                e('div', { style:{ fontSize:20, fontWeight:800, color:m.color } }, m.val),
+                e('div', { style:{ fontSize:9, color:"#555", fontWeight:600, marginTop:3 } }, m.label)
+              ))
+          )
+        ),
+
+        e('div', { style:{ fontSize:11, color:"#555", fontWeight:600, letterSpacing:"0.08em", marginBottom:10 } }, "COMIDAS"),
+        e('div', { style:{ display:"flex", flexDirection:"column", gap:8 } },
+          PLAN.meals.map(meal =>
+            e('div', { key:meal.id, style:{ background:"#1e2030", borderRadius:14, overflow:"hidden" } },
+              e('div', { style:{ padding:"14px 16px", cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center" },
+                onClick: () => setExpanded(ex => ({...ex, ["p_"+meal.id]: !ex["p_"+meal.id]})) },
+                e('div', null,
+                  e('div', { style:{ fontSize:11, color:"#555", fontWeight:600 } }, meal.time),
+                  e('div', { style:{ fontSize:15, fontWeight:700, color:"#fff", marginTop:1 } }, meal.name),
+                  e('div', { style:{ fontSize:12, color:"#555", marginTop:2 } }, meal.macros.p + "g P · " + meal.macros.c + "g C · " + meal.macros.g + "g G")
+                ),
+                e('div', { style:{ textAlign:"right" } },
+                  e('div', { style:{ fontSize:16, fontWeight:800, color:"#e2ff3f" } }, meal.kcal),
+                  e('div', { style:{ fontSize:10, color:"#555" } }, "kcal")
+                )
+              ),
+              expanded["p_"+meal.id] && e('div', { style:{ padding:"0 16px 14px", borderTop:"1px solid rgba(255,255,255,0.05)" } },
+                e('div', { style:{ paddingTop:10, display:"flex", flexDirection:"column", gap:5 } },
+                  meal.items.map((item,i) => e('div', { key:i, style:{ display:"flex", gap:8, alignItems:"center" } },
+                    e('div', { style:{ width:5, height:5, borderRadius:"50%", background:"#2a2d3e", flexShrink:0 } }),
+                    e('span', { style:{ fontSize:13, color:"#888" } }, item)
+                  )),
+                  meal.gymExtra && e('div', { style:{ marginTop:6, fontSize:12, color:"#e2ff3f", background:"rgba(226,255,63,0.08)", borderRadius:6, padding:"5px 8px" } }, "💪 " + meal.gymExtra)
+                )
+              )
+            )
+          )
+        ),
+
+        e('div', { style:{ marginTop:20 } },
+          e('div', { style:{ fontSize:11, color:"#555", fontWeight:600, letterSpacing:"0.08em", marginBottom:10 } }, "SUPLEMENTACIÓN"),
+          e('div', { style:{ background:"#1e2030", borderRadius:14, overflow:"hidden" } },
+            [
+              { time:"Ayunas", items:"Zinc" },
+              { time:"Comida", items:"D3+K2 · Omega-3" },
+              { time:"Post-entreno", items:"Creatina Creapure 5g" },
+              { time:"Cena", items:"Ashwagandha 300-600mg · Magnesio bisglicinato" },
+            ].map((s,i,arr) =>
+              e('div', { key:s.time, style:{ padding:"12px 16px", borderBottom: i<arr.length-1?"1px solid rgba(255,255,255,0.05)":"none", display:"flex", gap:12 } },
+                e('div', { style:{ fontSize:12, color:"#555", fontWeight:600, minWidth:90 } }, s.time),
+                e('div', { style:{ fontSize:13, color:"#888" } }, s.items)
+              )
+            )
+          )
+        )
+      );
+
+      return e('div', { style:{ background:"#12131a", minHeight:"100vh", fontFamily:"Inter,sans-serif", color:"#fff", maxWidth:430, margin:"0 auto", paddingBottom:80 } },
+        tab === "hoy" && tabHoy,
+        tab === "historial" && tabHistorial,
+        tab === "plan" && tabPlan,
+        nav
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+  </script>
+
+</body>
+</html>
